@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { SettingsPageClient } from '@/components/settings/settings-page'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,9 +33,6 @@ export default async function SettingsPage() {
       .eq('company_id', profile.company_id)
       .order('day_of_week', { ascending: true }),
   ])
-
-  // Dynamic import to avoid module resolution issues at build time
-  const { SettingsPageClient } = await import('@/components/settings/settings-page')
 
   return (
     <div className="min-h-screen bg-[#f5f5f6]">

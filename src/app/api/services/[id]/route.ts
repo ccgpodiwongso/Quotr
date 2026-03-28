@@ -28,7 +28,21 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, unit_price, unit, tax_rate } = body;
+    const { name, description, unit_price, unit, tax_rate, is_active } = body;
+
+    // Allow restore (is_active only) without requiring name/price
+    if (is_active !== undefined && name === undefined) {
+      const { data: service, error } = await supabase
+        .from('services')
+        .update({ is_active })
+        .eq('id', id)
+        .eq('company_id', profile.company_id)
+        .select()
+        .single();
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ service });
+    }
 
     if (!name || unit_price == null) {
       return NextResponse.json(
@@ -37,15 +51,18 @@ export async function PUT(
       );
     }
 
+    const updateData: Record<string, any> = {
+      name,
+      description: description || null,
+      unit_price: Number(unit_price),
+      unit: unit || 'fixed',
+      tax_rate: tax_rate != null ? Number(tax_rate) : 21,
+    };
+    if (is_active !== undefined) updateData.is_active = is_active;
+
     const { data: service, error } = await supabase
       .from('services')
-      .update({
-        name,
-        description: description || null,
-        unit_price: Number(unit_price),
-        unit: unit || 'fixed',
-        tax_rate: tax_rate != null ? Number(tax_rate) : 21,
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('company_id', profile.company_id)
       .select()

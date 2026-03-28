@@ -58,7 +58,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: authError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, locale });
+    // Set locale cookie so next-intl picks it up on next request
+    const response = NextResponse.json({ success: true, locale });
+    response.cookies.set('locale', locale, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+      sameSite: 'lax',
+    });
+    return response;
   } catch {
     return NextResponse.json(
       { error: 'Er is een onverwachte fout opgetreden.' },
