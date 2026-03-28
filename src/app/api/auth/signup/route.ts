@@ -38,13 +38,13 @@ export async function POST(request: Request) {
     });
 
     if (authError) {
-      // Map common Supabase errors to Dutch
       if (authError.message.includes('already been registered') || authError.message.includes('already exists')) {
         return NextResponse.json(
           { error: 'Dit e-mailadres is al geregistreerd.' },
           { status: 409 },
         );
       }
+      console.error('Auth error:', authError.message);
       return NextResponse.json(
         { error: authError.message },
         { status: 400 },
@@ -66,21 +66,20 @@ export async function POST(request: Request) {
         slug: `${slug}-${userId.slice(0, 8)}`,
         email,
         country: 'NL',
-        settings: {},
-        subscription_plan: 'trial',
-        subscription_status: 'active',
+        plan: 'trial',
         trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        next_quote_number: 1,
-        next_invoice_number: 1,
+        quote_next_number: 1,
+        invoice_next_number: 1,
+        locale: 'nl',
       })
       .select('id')
       .single();
 
     if (companyError) {
-      // Cleanup: delete the auth user if company creation fails
+      console.error('Company error:', companyError.message);
       await supabase.auth.admin.deleteUser(userId);
       return NextResponse.json(
-        { error: 'Kon bedrijf niet aanmaken. Probeer het opnieuw.' },
+        { error: `Kon bedrijf niet aanmaken: ${companyError.message}` },
         { status: 500 },
       );
     }
@@ -94,15 +93,15 @@ export async function POST(request: Request) {
         email,
         full_name: fullName,
         role: 'owner',
-        is_active: true,
+        locale: 'nl',
       });
 
     if (userError) {
-      // Cleanup: delete both the company and auth user
+      console.error('User error:', userError.message);
       await supabase.from('companies').delete().eq('id', company.id);
       await supabase.auth.admin.deleteUser(userId);
       return NextResponse.json(
-        { error: 'Kon gebruiker niet aanmaken. Probeer het opnieuw.' },
+        { error: `Kon gebruiker niet aanmaken: ${userError.message}` },
         { status: 500 },
       );
     }
@@ -111,9 +110,10 @@ export async function POST(request: Request) {
       { message: 'Account aangemaakt.', userId, companyId: company.id },
       { status: 201 },
     );
-  } catch {
+  } catch (err) {
+    console.error('Signup error:', err);
     return NextResponse.json(
-      { error: 'Er is een onverwachte fout opgetreden.' },
+      { error: `Er is een onverwachte fout opgetreden: ${err instanceof Error ? err.message : 'Onbekend'}` },
       { status: 500 },
     );
   }
